@@ -20,16 +20,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.newjaw.ui.theme.*
+import com.simats.newjaw.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onNavigateToLogin: () -> Unit) {
+fun SplashScreen(
+    authViewModel: AuthViewModel,
+    onNavigateToLogin: () -> Unit,
+    onNavigateToDashboard: () -> Unit
+) {
     var startAnimation by remember { mutableStateOf(false) }
+    val currentUser by authViewModel.currentUser.collectAsState()
 
     LaunchedEffect(key1 = true) {
         startAnimation = true
         delay(3000)
-        onNavigateToLogin()
+        if (currentUser != null) {
+            onNavigateToDashboard()
+        } else {
+            onNavigateToLogin()
+        }
     }
 
     val scale by animateFloatAsState(

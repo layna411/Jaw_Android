@@ -69,8 +69,14 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
                             SplashScreen(
+                                authViewModel = authViewModel,
                                 onNavigateToLogin = {
                                     navController.navigate("login") {
+                                        popUpTo("splash") { inclusive = true }
+                                    }
+                                },
+                                onNavigateToDashboard = {
+                                    navController.navigate("dashboard") {
                                         popUpTo("splash") { inclusive = true }
                                     }
                                 }
