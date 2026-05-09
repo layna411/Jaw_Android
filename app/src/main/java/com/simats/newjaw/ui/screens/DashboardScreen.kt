@@ -1,5 +1,6 @@
 package com.simats.newjaw.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,7 +50,6 @@ fun DashboardScreen(
     
     val patients by patientViewModel.patients.collectAsState()
     
-    val context = androidx.compose.ui.platform.LocalContext.current
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -112,7 +112,11 @@ fun DashboardScreen(
                         .background(Brush.linearGradient(listOf(PurplePrimary, PurpleSecondary))),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("DS", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = doctor?.full_name?.split(" ")?.joinToString("") { it.take(1) } ?: "DR",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -193,7 +197,17 @@ fun DashboardScreen(
                         Column {
                             Text(
                                 text = when {
-                                    isDeviceConnected -> "${connectedDevices.size} Sensors Active"
+                                    isDeviceConnected -> {
+                                        connectedDevices.map { device ->
+                                            @SuppressLint("MissingPermission")
+                                            val n = device.name?.uppercase() ?: ""
+                                            when {
+                                                n.contains("UPPER") -> "Upper Jaw"
+                                                n.contains("LOWER") -> "Lower Jaw"
+                                                else -> "Sensor"
+                                            }
+                                        }.joinToString(" & ")
+                                    }
                                     isScanning -> "Searching for Jaw Sensors..."
                                     else -> "Connect Jaw Sensors"
                                 },
@@ -297,7 +311,9 @@ fun DashboardScreen(
                     icon = Icons.Default.PlayArrow,
                     colorStart = Color(0xFFA855F7),
                     colorEnd = Color(0xFF7E22CE),
-                    onClick = { onNavigateToLiveMonitor("1") }
+                    onClick = { onNavigateToLiveMonitor(patients.firstOrNull()?.unique_id ?: "1") }
+
+
                 )
                 QuickActionCard(
                     modifier = Modifier.weight(1f),
@@ -345,9 +361,11 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             patients.take(3).forEach { patient ->
-                RecentPatientCard(patient.patient_name, patient.medical_condition ?: "N/A", 50, "N/A")
+                RecentPatientCard(patient.patient_name, patient.unique_id ?: "N/A", 50, patient.phone ?: "N/A")
                 Spacer(modifier = Modifier.height(12.dp))
             }
+
+
 
         }
     }
@@ -387,9 +405,21 @@ fun RecentPatientCard(name: String, condition: String, progress: Int, lastSessio
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(text = name, fontWeight = FontWeight.Medium, color = TextPrimary)
-                    Text(text = condition, fontSize = 12.sp, color = TextSecondary)
+                    Text(text = name, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Surface(
+                        color = PurplePrimary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = condition, // This is now unique_id
+                            color = PurplePrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
                 }
+
             }
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -25,26 +26,40 @@ class JawBleManager(private val context: Context) {
     private val _connectedDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
     val connectedDevices: StateFlow<List<BluetoothDevice>> = _connectedDevices.asStateFlow()
 
+    private val _scannedDevices = MutableStateFlow<List<ScanResult>>(emptyList())
+    val scannedDevices: StateFlow<List<ScanResult>> = _scannedDevices.asStateFlow()
+
     private val activeGattConnections = mutableMapOf<String, BluetoothGatt>()
+    private val deviceNameMap = mutableMapOf<String, String>() // Store names by address
 
     // Replace with actual UUIDs for your hardware
-    private val JAW_SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb")
-    private val JAW_CHARACTERISTIC_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb")
+    // UUIDs from your latest GATT dump
+    private val JAW_SERVICE_UUID = UUID.fromString("0000180c-0000-1000-8000-00805f9b34fb")
+    private val JAW_CHARACTERISTIC_UUID = UUID.fromString("00002a56-0000-1000-8000-00805f9b34fb")
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
-            result?.device?.let { device ->
+            result?.let { res ->
+                val device = res.device
                 val name = device.name ?: "Unknown"
                 Log.d("JawBleManager", "Scanned device: $name (${device.address})")
                 
+                // Update scanned list
+                val currentList = _scannedDevices.value.toMutableList()
+                val index = currentList.indexOfFirst { it.device.address == device.address }
+                if (index != -1) {
+                    currentList[index] = res
+                } else {
+                    currentList.add(res)
+                }
+                _scannedDevices.value = currentList
+
                 if (name.contains("JAW", ignoreCase = true) || name.contains("Sensor", ignoreCase = true)) {
+                    deviceNameMap[device.address] = name // Save the name
                     if (!_connectedDevices.value.any { it.address == device.address }) {
                         if (_connectedDevices.value.size < 2) {
                             Log.d("JawBleManager", "Target device found: $name, connecting...")
                             connectToDevice(device)
-                        } else {
-                            Log.d("JawBleManager", "Already connected to 2 devices, stopping scan.")
-                            stopScanning()
                         }
                     }
                 }
@@ -66,7 +81,11 @@ class JawBleManager(private val context: Context) {
                     _connectedDevices.value = devices
                 }
                 activeGattConnections[deviceAddress] = gatt
-                gatt.discoverServices()
+                Log.d("JawBleManager", "Requesting MTU (512) for ${gatt.device.name}...")
+                if (!gatt.requestMtu(512)) {
+                    Log.w("JawBleManager", "MTU request failed, starting service discovery anyway...")
+                    gatt.discoverServices()
+                }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d("JawBleManager", "Disconnected from ${gatt.device.name ?: deviceAddress}")
                 val devices = _connectedDevices.value.filter { it.address != deviceAddress }
@@ -76,46 +95,39 @@ class JawBleManager(private val context: Context) {
             }
         }
 
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            Log.d("JawBleManager", "MTU changed to $mtu for ${gatt.device.name}. Discovering services...")
+            gatt.discoverServices()
+        }
+
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d("JawBleManager", "Services discovered for ${gatt.device.name}")
+                Log.d("JawBleManager", "Services discovered for ${gatt.device.name}. Waiting 500ms...")
                 
-                // Log all discovered services to help user identify correct UUIDs
-                gatt.services.forEach { service ->
-                    Log.d("JawBleManager", "Service: ${service.uuid}")
-                    service.characteristics.forEach { char ->
-                        Log.d("JawBleManager", "  Characteristic: ${char.uuid}, Properties: ${char.properties}")
-                    }
-                }
-
-                val service = gatt.getService(JAW_SERVICE_UUID)
-                var characteristic = service?.getCharacteristic(JAW_CHARACTERISTIC_UUID)
-                
-                // FALLBACK: If specific characteristic not found, look for any NOTIFY characteristic in the service
-                if (characteristic == null && service != null) {
-                    characteristic = service.characteristics.find { 
-                        (it.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0 
-                    }
-                    if (characteristic != null) {
-                        Log.d("JawBleManager", "Using fallback characteristic: ${characteristic.uuid}")
-                    }
-                }
-
-                if (characteristic != null) {
-                    gatt.setCharacteristicNotification(characteristic, true)
-                    
-                    val CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-                    val descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG)
-                    if (descriptor != null) {
-                        descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        gatt.writeDescriptor(descriptor)
-                        Log.d("JawBleManager", "Notifications enabled for characteristic: ${characteristic.uuid}")
-                    }
-                } else {
-                    Log.e("JawBleManager", "No compatible characteristic found (Target or Fallback)!")
+                // Small delay helps hardware stabilize
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(500)
+                    enableNotifications(gatt)
                 }
             } else {
                 Log.e("JawBleManager", "Service discovery failed with status: $status")
+            }
+        }
+
+        private fun enableNotifications(gatt: BluetoothGatt) {
+            val service = gatt.getService(JAW_SERVICE_UUID)
+            val characteristic = service?.getCharacteristic(JAW_CHARACTERISTIC_UUID)
+            
+            if (characteristic != null) {
+                gatt.setCharacteristicNotification(characteristic, true)
+                val descriptor = characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                if (descriptor != null) {
+                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    gatt.writeDescriptor(descriptor)
+                    Log.d("JawBleManager", "✅ Notifications ENABLED for ${gatt.device.name}")
+                }
+            } else {
+                Log.e("JawBleManager", "❌ Failed to find JAW characteristic for ${gatt.device.name}")
             }
         }
 
@@ -124,11 +136,11 @@ class JawBleManager(private val context: Context) {
             characteristic: BluetoothGattCharacteristic
         ) {
             val rawData = characteristic.value
-            Log.d("JawBleManager", "Data received: ${rawData.size} bytes from ${gatt.device.name}")
-            val dataString = String(rawData)
+            val deviceAddress = gatt.device.address
+            val savedName = deviceNameMap[deviceAddress] ?: gatt.device.name ?: "Unknown"
             
-            // Send data to backend automatically
-            sendDataToBackend(gatt.device.name ?: "Unknown_Device", dataString)
+            val dataString = String(rawData)
+            sendDataToBackend(savedName, dataString)
         }
     }
 
@@ -137,6 +149,7 @@ class JawBleManager(private val context: Context) {
     fun startScanning(patientId: String = "1") {
         this.currentPatientId = patientId
         if (bluetoothAdapter?.isEnabled == true) {
+            _scannedDevices.value = emptyList() // Clear previous results
             bleScanner?.startScan(scanCallback)
             Log.d("JawBleManager", "Started BLE Scanning for Patient $patientId")
         }
@@ -167,10 +180,18 @@ class JawBleManager(private val context: Context) {
                 Log.d("JawBleManager", "Parsed ${vals.size} values from $deviceName")
                 
                 if (vals.size >= 6) {
-                    if (deviceName.contains("UPPER", ignoreCase = true)) {
+                    // UPPER_JAW or NanoBLE1 -> Routes to 'upper' slot in backend
+                    if (deviceName.contains("UPPER", true) || deviceName.contains("NanoBLE1", true)) {
+                        Log.d("JawBleManager", "Routing $deviceName to UPPER slot")
                         SocketManager.sendSensorData(currentPatientId, upper = vals)
-                    } else if (deviceName.contains("LOWER", ignoreCase = true)) {
+                    } 
+                    // LOWER_JAW or NanoBLE2 -> Routes to 'lower' slot in backend
+                    else if (deviceName.contains("LOWER", true) || deviceName.contains("NanoBLE2", true)) {
+                        Log.d("JawBleManager", "Routing $deviceName to LOWER slot")
                         SocketManager.sendSensorData(currentPatientId, lower = vals)
+                    }
+                    else {
+                        Log.w("JawBleManager", "Unknown device name '$deviceName', data not routed.")
                     }
                     Log.d("JawBleManager", "Successfully sent $deviceName data to Socket")
                 } else {

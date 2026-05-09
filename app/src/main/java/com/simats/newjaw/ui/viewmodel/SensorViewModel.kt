@@ -13,20 +13,22 @@ import kotlin.random.Random
 import com.simats.newjaw.data.network.SocketManager
 
 data class JawSensorData(
-    val jawDisp: Double = 0.0,
-    val velocity: Double = 0.0,
-    val acceleration: Double = 0.0,
-    val rom: Double = 0.0,
-    val chewingFrequency: Double = 0.0,
-    val symmetry: Double = 0.0,
-    val pitch: Double = 0.0,
-    val roll: Double = 0.0,
-    val jawOpening: Double = 0.0
+    val protrusiveAngle: Double = 0.0,
+    val protrusiveDisp: Double = 0.0
 )
 
 class SensorViewModel : ViewModel() {
     private val _sensorData = MutableStateFlow(JawSensorData())
     val sensorData: StateFlow<JawSensorData> = _sensorData.asStateFlow()
+
+    private val _statusMessage = MutableStateFlow("Waiting for calibration...")
+    val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
+
+    private val _statusType = MutableStateFlow("info")
+    val statusType: StateFlow<String> = _statusType.asStateFlow()
+
+    private val _isSocketConnected = MutableStateFlow(false)
+    val isSocketConnected: StateFlow<Boolean> = _isSocketConnected.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -38,21 +40,31 @@ class SensorViewModel : ViewModel() {
         SocketManager.connect()
         SocketManager.onMetricsReceived { json ->
             _sensorData.value = JawSensorData(
-                jawDisp = json.optDouble("disp", 0.0),
-                velocity = json.optDouble("vel", 0.0),
-                acceleration = json.optDouble("acc", 0.0),
-                rom = json.optDouble("rom", 0.0),
-                chewingFrequency = json.optDouble("freq", 0.0),
-                symmetry = json.optDouble("sym", 0.0),
-                pitch = json.optDouble("pitch", 0.0),
-                roll = json.optDouble("roll", 0.0),
-                jawOpening = json.optDouble("jaw_opening", 0.0)
+                protrusiveAngle = json.optDouble("protrusive_angle", 0.0),
+                protrusiveDisp = json.optDouble("protrusive_disp", 0.0)
             )
         }
+
+        SocketManager.onStatusReceived { message, type ->
+            _statusMessage.value = message
+            _statusType.value = type
+        }
+
+        // Track connection status
+        SocketManager.onConnect { _isSocketConnected.value = true }
+        SocketManager.onDisconnect { _isSocketConnected.value = false }
     }
 
     fun startPolling() {
-        // No longer polling since we use WebSocket events
+        // Reset backend state when starting a new session
+        viewModelScope.launch {
+            try {
+                com.simats.newjaw.data.network.RetrofitClient.api.resetState()
+                _error.value = null
+            } catch (e: Exception) {
+                _error.value = "Failed to reset server state: ${e.message}"
+            }
+        }
     }
 
     fun stopPolling() {

@@ -17,7 +17,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.simats.newjaw.R
 import androidx.compose.ui.unit.sp
 import com.simats.newjaw.ui.theme.*
 import com.simats.newjaw.ui.viewmodel.AuthViewModel
@@ -89,12 +92,13 @@ fun SplashScreen(
                         .background(Brush.linearGradient(listOf(PurplePrimary, PurpleSecondary))),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.MonitorHeart,
+                    Image(
+                        painter = painterResource(id = R.drawable.logo),
                         contentDescription = "Logo",
-                        tint = Color.White,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(80.dp)
                     )
+
+
                 }
             }
 

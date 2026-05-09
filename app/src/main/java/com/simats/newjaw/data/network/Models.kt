@@ -34,6 +34,7 @@ data class RegisterResponse(
 
 data class Patient(
     val id: Int,
+    val unique_id: String?,
     val doctor_id: Int,
     val patient_name: String,
     val age: Int?,
@@ -43,6 +44,7 @@ data class Patient(
     val assigned_exercise: String?,
     val created_at: String
 )
+
 
 data class PatientCreate(
     val doctor_id: Int,
@@ -58,10 +60,14 @@ data class BaseResponse(
     val message: String
 )
 
+data class AddPatientResponse(
+    val message: String,
+    val unique_id: String
+)
+
+
 data class SessionData(
     val session_date: String,
-    val max_disp: Double,
-    val avg_velocity: Double,
-    val max_rom: Double,
-    val avg_symmetry: Double
+    val max_angle: Double,
+    val max_disp: Double
 )

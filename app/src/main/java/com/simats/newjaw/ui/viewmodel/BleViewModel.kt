@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 class BleViewModel(application: Application) : AndroidViewModel(application) {
     private val bleManager = JawBleManager(application)
     val connectedDevices: StateFlow<List<android.bluetooth.BluetoothDevice>> = bleManager.connectedDevices
+    val scannedDevices: StateFlow<List<android.bluetooth.le.ScanResult>> = bleManager.scannedDevices
 
     private val _isScanning = kotlinx.coroutines.flow.MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning

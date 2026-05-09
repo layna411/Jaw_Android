@@ -19,6 +19,11 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,16 +59,15 @@ fun LiveMonitorScreen(
     val trajectoryPoints = remember { mutableStateListOf<com.simats.newjaw.ui.viewmodel.JawSensorData>() }
 
     val sensorData by viewModel.sensorData.collectAsState()
+    val statusMessage by viewModel.statusMessage.collectAsState()
+    val statusType by viewModel.statusType.collectAsState()
     val isBackendLoading by viewModel.isLoading.collectAsState()
+    val isSocketConnected by viewModel.isSocketConnected.collectAsState()
     val connectedDevices by bleViewModel.connectedDevices.collectAsState()
 
     // Real-time metrics from backend
-    val displacement = sensorData.jawDisp.toFloat()
-    val velocity = sensorData.velocity.toFloat()
-    val acceleration = sensorData.acceleration.toFloat()
-    val rangeOfMotion = sensorData.rom.toFloat()
-    val frequency = sensorData.chewingFrequency.toFloat()
-    val symmetry = sensorData.symmetry.toFloat()
+    val protrusiveAngle = sensorData.protrusiveAngle.toFloat()
+    val protrusiveDisp = sensorData.protrusiveDisp.toFloat()
 
     LaunchedEffect(isMonitoring) {
         if (isMonitoring) {
@@ -120,6 +124,54 @@ fun LiveMonitorScreen(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(formatTime(sessionTime), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Text("Session Time", fontSize = 12.sp, color = TextSecondary)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Status Card (New!)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = when(statusType) {
+                        "success" -> Color(0xFFE8F5E9)
+                        "ready" -> Color(0xFFE3F2FD)
+                        "motion" -> Color(0xFFFFF3E0)
+                        "steady" -> Color(0xFFF3E5F5)
+                        "result" -> Color(0xFFF1F8E9)
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = when(statusType) {
+                            "success" -> Icons.Default.CheckCircle
+                            "motion" -> Icons.Default.Warning
+                            "steady" -> Icons.Default.Notifications
+                            "result" -> Icons.Default.Star
+                            else -> Icons.Default.Info
+                        },
+                        contentDescription = null,
+                        tint = when(statusType) {
+                            "success" -> Color(0xFF2E7D32)
+                            "motion" -> Color(0xFFE65100)
+                            "steady" -> Color(0xFF7B1FA2)
+                            "result" -> Color(0xFF33691E)
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = statusMessage,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
                 }
             }
 
@@ -227,12 +279,12 @@ fun LiveMonitorScreen(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (isMonitoring) Color.Green else Color.Gray)
+                                .background(if (isSocketConnected) Color.Green else Color.Red)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.Wifi, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Wifi, contentDescription = null, tint = if (isSocketConnected) PurplePrimary else Color.Gray, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Backend", fontSize = 12.sp, color = TextPrimary)
+                        Text(if (isSocketConnected) "Connected" else "Disconnected", fontSize = 12.sp, color = if (isSocketConnected) TextPrimary else Color.Red)
                     }
                 }
             }
@@ -248,45 +300,34 @@ fun LiveMonitorScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
             ) {
-                LaunchedEffect(sensorData) {
-                    if (isMonitoring) {
-                        trajectoryPoints.add(sensorData)
-                        if (trajectoryPoints.size > 200) trajectoryPoints.removeAt(0)
+                // Protrusive Measurement Status
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (protrusiveAngle > 2.0) "MEASURING..." else "READY",
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (protrusiveAngle > 2.0) Color(0xFFF97316) else Color(0xFF22C55E)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (isMonitoring) statusMessage else "Ready to Start",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
-
-                val graphPoints = trajectoryPoints.toList().map {
-                    Point3D(it.roll.toFloat(), it.pitch.toFloat(), it.jawOpening.toFloat())
-                }
-
-                val metricsMap = mapOf(
-                    "Disp" to "${"%.2f".format(displacement)} mm",
-                    "Vel" to "${"%.2f".format(velocity)} mm/s",
-                    "Acc" to "${"%.2f".format(acceleration)} mm/s²",
-                    "ROM" to "${"%.2f".format(rangeOfMotion)} mm",
-                    "Freq" to "${"%.2f".format(frequency)} Hz",
-                    "Sym" to "%.2f".format(symmetry)
-                )
-
-                ThreeDGraph(
-                    points = graphPoints,
-                    metrics = metricsMap,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Metric Cards
             val metricsData = listOf(
-                MetricData("Displacement", "%.2f".format(displacement), "mm", Icons.Default.ShowChart, Color(0xFFA855F7)),
-                MetricData("Velocity", "%.2f".format(velocity), "mm/s", Icons.Default.Speed, Color(0xFF06B6D4)),
-                MetricData("Acceleration", "%.2f".format(acceleration), "mm/s²", Icons.Default.TrendingUp, Color(0xFF22C55E)),
-                MetricData("Range of Motion", "%.2f".format(rangeOfMotion), "mm", Icons.Default.ShowChart, Color(0xFFF97316)),
-                MetricData("Frequency", "%.2f".format(frequency), "Hz", Icons.Default.Speed, Color(0xFFEC4899)),
-                MetricData("Symmetry", "%.2f".format(symmetry), "", Icons.Default.TrendingUp, Color(0xFFA855F7))
+                MetricData("Protrusive Angle", "%.2f".format(protrusiveAngle), "deg", Icons.Default.TrendingUp, Color(0xFF8B5CF6)),
+                MetricData("Protrusive Disp", "%.2f".format(protrusiveDisp), "mm", Icons.Default.ShowChart, Color(0xFFF43F5E))
             )
 
             // Grid

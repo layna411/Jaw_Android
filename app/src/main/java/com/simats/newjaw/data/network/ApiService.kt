@@ -13,11 +13,17 @@ interface ApiService {
     suspend fun login(@Body request: DoctorLogin): LoginResponse
 
     @POST("patients")
-    suspend fun addPatient(@Body request: PatientCreate): BaseResponse
+    suspend fun addPatient(@Body request: PatientCreate): AddPatientResponse
 
     @GET("patients")
     suspend fun getPatients(@Query("doctor_id") doctorId: Int): List<Patient>
 
     @GET("sessions")
     suspend fun getSessions(@Query("patient_id") patientId: String): List<SessionData>
+
+    @POST("auth/update-doctor")
+    suspend fun updateDoctor(@Body doctor: Doctor): BaseResponse
+
+    @POST("reset")
+    suspend fun resetState(): BaseResponse
 }

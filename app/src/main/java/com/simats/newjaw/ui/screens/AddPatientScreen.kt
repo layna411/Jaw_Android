@@ -125,90 +125,6 @@ fun AddPatientScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Patient Photo
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        Color.White.copy(alpha = 0.5f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Patient Photo",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary,
-                            modifier = Modifier.align(Alignment.Start)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            Color(0xFFE9D5FF),
-                                            Color(0xFFF3E8FF)
-                                        )
-                                    )
-                                )
-                                .border(4.dp, Color.White, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = null,
-                                tint = PurplePrimary,
-                                modifier = Modifier.size(64.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = { /* TODO */ },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                            contentPadding = PaddingValues(),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(
-                                                PurplePrimary,
-                                                PurpleSecondary
-                                            )
-                                        )
-                                    )
-                                    .padding(horizontal = 24.dp, vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.Upload,
-                                        contentDescription = null,
-                                        tint = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Upload Photo", color = Color.White)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
                 // Personal Information
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -222,7 +138,7 @@ fun AddPatientScreen(
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
-                            "Personal Information",
+                            "Patient Information",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = TextPrimary
@@ -233,7 +149,7 @@ fun AddPatientScreen(
                             value = fullName,
                             onValueChange = { fullName = it },
                             label = { Text("Full Name") },
-                            placeholder = { Text("Enter full name") },
+                            placeholder = { Text("Enter patient's full name") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color.White.copy(alpha = 0.6f),
@@ -262,55 +178,11 @@ fun AddPatientScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("Gender", fontSize = 14.sp, color = TextPrimary)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("male", "female", "other").forEach { g ->
-                                val isSelected = gender == g
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(
-                                            if (isSelected) Brush.linearGradient(
-                                                listOf(
-                                                    PurplePrimary,
-                                                    PurpleSecondary
-                                                )
-                                            )
-                                            else Brush.linearGradient(
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.6f),
-                                                    Color.White.copy(alpha = 0.6f)
-                                                )
-                                            )
-                                        )
-                                        .border(
-                                            1.dp,
-                                            if (isSelected) Color.Transparent else BorderColor,
-                                            RoundedCornerShape(16.dp)
-                                        )
-                                        .clickable { gender = g }
-                                        .padding(vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = g.replaceFirstChar { it.uppercase() },
-                                        color = if (isSelected) Color.White else TextSecondary
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         OutlinedTextField(
                             value = phone,
                             onValueChange = { phone = it },
-                            label = { Text("Phone Number") },
-                            placeholder = { Text("+1 234 567 8900") },
+                            label = { Text("Mobile Number") },
+                            placeholder = { Text("Enter mobile number") },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Phone,
@@ -320,109 +192,6 @@ fun AddPatientScreen(
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White.copy(alpha = 0.6f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
-                                unfocusedBorderColor = BorderColor,
-                                focusedBorderColor = PurplePrimary
-                            ),
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Medical Information
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        Color.White.copy(alpha = 0.5f)
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(24.dp)) {
-                        Text(
-                            "Medical Information",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = medicalCondition,
-                            onValueChange = { medicalCondition = it },
-                            label = { Text("Medical Condition") },
-                            placeholder = { Text("e.g., TMJ Disorder") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White.copy(alpha = 0.6f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
-                                unfocusedBorderColor = BorderColor,
-                                focusedBorderColor = PurplePrimary
-                            ),
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Box {
-                            OutlinedTextField(
-                                value = exerciseProgram,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Assigned Exercise Program") },
-                                trailingIcon = {
-                                    Icon(
-                                        Icons.Default.ArrowDropDown,
-                                        contentDescription = null
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { showExerciseDropdown = true },
-                                enabled = false,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    disabledTextColor = TextPrimary,
-                                    disabledBorderColor = BorderColor,
-                                    disabledTrailingIconColor = TextSecondary,
-                                    disabledLabelColor = TextSecondary,
-                                    disabledContainerColor = Color.White.copy(alpha = 0.6f)
-                                ),
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            DropdownMenu(
-                                expanded = showExerciseDropdown,
-                                onDismissRequest = { showExerciseDropdown = false },
-                                modifier = Modifier.fillMaxWidth(0.8f)
-                            ) {
-                                exerciseOptions.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = { Text(option) },
-                                        onClick = {
-                                            exerciseProgram = option
-                                            showExerciseDropdown = false
-                                        }
-                                    )
-                                }
-                            }
-                            Box(
-                                modifier = Modifier.matchParentSize()
-                                    .clickable { showExerciseDropdown = true })
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = notes,
-                            onValueChange = { notes = it },
-                            label = { Text("Additional Notes") },
-                            placeholder = { Text("Enter observations...") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color.White.copy(alpha = 0.6f),
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
@@ -445,6 +214,10 @@ fun AddPatientScreen(
                             scope.launch { snackbarHostState.showSnackbar("Please enter patient name") }
                             return@Button
                         }
+                        if (phone.isBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("Please enter mobile number") }
+                            return@Button
+                        }
 
                         val docId = doctor?.id
                         if (docId == null) {
@@ -457,10 +230,10 @@ fun AddPatientScreen(
                                 doctor_id = docId,
                                 patient_name = fullName,
                                 age = age.toIntOrNull(),
-                                gender = gender,
+                                gender = "Not Specified",
                                 phone = phone,
-                                medical_condition = medicalCondition,
-                                assigned_exercise = exerciseProgram
+                                medical_condition = "",
+                                assigned_exercise = ""
                             )
                         ) {
                             scope.launch {

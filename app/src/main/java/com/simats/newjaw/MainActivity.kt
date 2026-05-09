@@ -265,6 +265,10 @@ class MainActivity : ComponentActivity() {
                                 Box(modifier = Modifier.padding(innerPadding)) {
                                     com.simats.newjaw.ui.screens.SettingsScreen(
                                         authViewModel = authViewModel,
+                                        bleViewModel = bleViewModel,
+                                        onNavigateToEditProfile = {
+                                            navController.navigate("edit-profile")
+                                        },
                                         onNavigateToLogin = {
                                             navController.navigate("login") {
                                                 popUpTo(0) // clear backstack
@@ -276,6 +280,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("jaw-model") {
                             com.simats.newjaw.ui.screens.JawModel3DScreen(
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("edit-profile") {
+                            com.simats.newjaw.ui.screens.EditProfileScreen(
+                                authViewModel = authViewModel,
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }

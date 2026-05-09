@@ -48,6 +48,7 @@ object SocketManager {
         }
         
         socket?.emit("sensor_data", json)
+        Log.d("SocketManager", "Emitted sensor_data for patient: $patientId")
     }
 
     fun onMetricsReceived(onMetrics: (JSONObject) -> Unit) {
@@ -57,6 +58,25 @@ object SocketManager {
                 onMetrics(data)
             }
         }
+    }
+
+    fun onStatusReceived(onStatus: (String, String) -> Unit) {
+        socket?.on("session_status") { args ->
+            if (args.isNotEmpty()) {
+                val data = args[0] as JSONObject
+                val message = data.optString("message", "")
+                val type = data.optString("type", "info")
+                onStatus(message, type)
+            }
+        }
+    }
+
+    fun onConnect(callback: () -> Unit) {
+        socket?.on(Socket.EVENT_CONNECT) { callback() }
+    }
+
+    fun onDisconnect(callback: () -> Unit) {
+        socket?.on(Socket.EVENT_DISCONNECT) { callback() }
     }
 
     fun disconnect() {

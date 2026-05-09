@@ -1,7 +1,7 @@
 package com.simats.newjaw.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,15 +9,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,14 +29,44 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.simats.newjaw.ui.theme.*
 
 @Composable
 fun SettingsScreen(
     onNavigateToLogin: () -> Unit,
-    authViewModel: com.simats.newjaw.ui.viewmodel.AuthViewModel
+    onNavigateToEditProfile: () -> Unit,
+    authViewModel: com.simats.newjaw.ui.viewmodel.AuthViewModel,
+    bleViewModel: com.simats.newjaw.ui.viewmodel.BleViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val doctor by authViewModel.currentUser.collectAsState()
+    val connectedDevices by bleViewModel.connectedDevices.collectAsState()
+    val isScanning by bleViewModel.isScanning.collectAsState()
+    val scannedResults by bleViewModel.scannedDevices.collectAsState()
+
+    var showConnectDialog by remember { mutableStateOf(false) }
+
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            bleViewModel.startScanning()
+            showConnectDialog = true
+        }
+    }
+
+    if (showConnectDialog) {
+        ConnectBleDialog(
+            scannedResults = scannedResults,
+            isScanning = isScanning,
+            onScanAgain = { bleViewModel.startScanning() },
+            onDismiss = {
+                bleViewModel.stopScanning()
+                showConnectDialog = false
+            }
+        )
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -87,9 +116,10 @@ fun SettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = doctor?.full_name ?: "Doctor", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                         Text(text = doctor?.specialization ?: "Medical Professional", fontSize = 12.sp, color = TextSecondary)
+                        Text(text = doctor?.hospital_name ?: "", fontSize = 12.sp, color = TextSecondary)
                         Text(text = doctor?.email ?: "", fontSize = 10.sp, color = TextSecondary)
                     }
-                    TextButton(onClick = { /* TODO */ }) {
+                    TextButton(onClick = { onNavigateToEditProfile() }) {
                         Text("Edit", color = PurplePrimary)
                     }
                 }
@@ -99,21 +129,43 @@ fun SettingsScreen(
 
             // Device Section
             SettingsSection("DEVICE") {
-                SettingsItem(Icons.Default.Bluetooth, "Bluetooth Connection", badge = "Not Connected")
+                SettingsItem(
+                    icon = Icons.Default.Bluetooth,
+                    label = "Bluetooth\nConnection",
+                    badge = when {
+                        connectedDevices.isNotEmpty() -> {
+                            val names = connectedDevices.mapNotNull { device ->
+                                @SuppressLint("MissingPermission")
+                                val n = device.name?.uppercase() ?: ""
+                                when {
+                                    n.contains("UPPER") -> "Upper"
+                                    n.contains("LOWER") -> "Lower"
+                                    else -> null
+                                }
+                            }
+                            if (names.isNotEmpty()) {
+                                names.joinToString("\n") + "\nConnected"
+                            } else {
+                                "${connectedDevices.size}\nConnected"
+                            }
+                        }
+                        isScanning -> "Scanning..."
+                        else -> "Not\nConnected"
+                    },
+                    onClick = {
+                        val permissions = mutableListOf(
+                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            permissions.add(android.Manifest.permission.BLUETOOTH_SCAN)
+                            permissions.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+                        }
+                        permissionLauncher.launch(permissions.toTypedArray())
+                    }
+                )
                 SettingsItem(Icons.Default.Wifi, "Connect Device")
                 SettingsItem(Icons.Default.Speed, "Sensor Calibration")
-            }
-
-            // Preferences Section
-            SettingsSection("PREFERENCES") {
-                var cloudSync by remember { mutableStateOf(true) }
-                var notifications by remember { mutableStateOf(true) }
-                var darkMode by remember { mutableStateOf(false) }
-
-                SettingsToggleItem(Icons.Default.Cloud, "Cloud Sync", cloudSync) { cloudSync = it }
-                SettingsToggleItem(Icons.Default.Notifications, "Notifications", notifications) { notifications = it }
-                SettingsToggleItem(Icons.Default.Cloud, "Dark Mode", darkMode) { darkMode = it }
-                SettingsItem(Icons.Default.Timer, "Session Reminders")
             }
 
             // About Section
@@ -145,7 +197,7 @@ fun SettingsScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = null, tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Sign Out", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
@@ -161,6 +213,210 @@ fun SettingsScreen(
             ) {
                 Text("Smart Jaw Rehab", fontSize = 14.sp, color = TextSecondary)
                 Text("Version 1.0.0 • © 2026", fontSize = 12.sp, color = TextSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+fun ConnectBleDialog(
+    scannedResults: List<android.bluetooth.le.ScanResult>,
+    isScanning: Boolean,
+    onScanAgain: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth()
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Brush.linearGradient(listOf(PurplePrimary, PurpleSecondary))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Bluetooth, contentDescription = null, tint = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Connect BLE Sensor",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Scan for nearby devices",
+                                fontSize = 14.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Found ${scannedResults.size} devices",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Device List
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    scannedResults.forEach { result ->
+                        val device = result.device
+                        @SuppressLint("MissingPermission")
+                        val name = device.name ?: "Unknown Device"
+                        val rssi = result.rssi
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = BackgroundStart.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.2f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(PurplePrimary.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Bluetooth,
+                                        contentDescription = null,
+                                        tint = PurplePrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        text = name,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimary
+                                    )
+                                    val subtitle = when {
+                                        name.uppercase().contains("UPPER") -> "Upper Jaw Sensor"
+                                        name.uppercase().contains("LOWER") -> "Lower Jaw Sensor"
+                                        else -> "Signal: $rssi dBm"
+                                    }
+                                    Text(
+                                        text = subtitle,
+                                        fontSize = 12.sp,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (isScanning && scannedResults.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(100.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = PurplePrimary)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onScanAgain,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isScanning
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Brush.linearGradient(listOf(PurplePrimary, PurpleSecondary))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isScanning) {
+                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text("Scan Again", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel", color = TextSecondary, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        tint = Color(0xFFEAB308),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Ensure Bluetooth is enabled on your device",
+                        fontSize = 11.sp,
+                        color = TextSecondary
+                    )
+                }
             }
         }
     }
@@ -206,7 +462,10 @@ fun SettingsItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -217,59 +476,34 @@ fun SettingsItem(
                 Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Text(
+                text = label, 
+                fontSize = 14.sp, 
+                fontWeight = FontWeight.Medium, 
+                color = TextPrimary,
+                lineHeight = 18.sp
+            )
         }
+        Spacer(modifier = Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (badge != null) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFE9D5FF))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(badge, color = PurplePrimary, fontSize = 12.sp)
+                    Text(
+                        text = badge, 
+                        color = PurplePrimary, 
+                        fontSize = 12.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 14.sp
+                    )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
             }
-            Icon(Icons.Default.ArrowForwardIos, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
         }
-    }
-}
-
-@Composable
-fun SettingsToggleItem(
-    icon: ImageVector,
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFE9D5FF), Color(0xFFF3E8FF)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = PurplePrimary
-            )
-        )
     }
 }

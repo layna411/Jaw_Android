@@ -92,6 +92,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun updateProfile(doctor: Doctor, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                RetrofitClient.api.updateDoctor(doctor)
+                _currentUser.value = doctor
+                
+                // Persist updated user
+                sharedPreferences.edit()
+                    .putString("current_user", gson.toJson(doctor))
+                    .apply()
+                
+                onSuccess()
+            } catch (e: Exception) {
+                _error.value = e.localizedMessage ?: "Update failed"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
     
     fun logout(onSuccess: () -> Unit) {
         _currentUser.value = null

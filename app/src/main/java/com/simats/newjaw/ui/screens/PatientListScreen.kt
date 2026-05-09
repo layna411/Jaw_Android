@@ -188,8 +188,10 @@ fun PatientListScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(filteredPatients) { patient ->
-                        PatientCard(patient = patient, onClick = { onNavigateToLiveMonitor(patient.id.toString()) })
+                        PatientCard(patient = patient, onClick = { onNavigateToLiveMonitor(patient.unique_id ?: "1") })
                     }
+
+
                 }
             }
         }
@@ -224,9 +226,26 @@ fun PatientCard(patient: com.simats.newjaw.data.network.Patient, onClick: () -> 
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = patient.patient_name, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 18.sp)
-                    Text(text = "${patient.medical_condition ?: "General Recovery"} • ${patient.age ?: "N/A"} yrs", color = TextSecondary, fontSize = 14.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = patient.patient_name, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = PurplePrimary.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = patient.unique_id ?: "N/A",
+                                color = PurplePrimary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+
+                        }
+                    }
+                    Text(text = "Mobile: ${patient.phone ?: "N/A"} • Age: ${patient.age ?: "N/A"} yrs", color = TextSecondary, fontSize = 14.sp)
                 }
+
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
