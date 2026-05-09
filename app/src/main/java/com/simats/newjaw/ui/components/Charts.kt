@@ -1,6 +1,8 @@
 package com.simats.newjaw.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -12,10 +14,11 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.simats.newjaw.ui.theme.PurplePrimary
-import com.simats.newjaw.ui.theme.TextSecondary
+import com.simats.newjaw.ui.theme.*
+import kotlin.math.*
 
 data class ChartData(val label: String, val value: Float)
+data class Point3D(val x: Float, val y: Float, val z: Float)
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
@@ -223,5 +226,135 @@ fun BarChart(
             end = Offset(width, chartHeight),
             strokeWidth = 2f
         )
+    }
+}
+
+@OptIn(ExperimentalTextApi::class)
+@Composable
+fun ThreeDGraph(
+    points: List<Point3D>,
+    modifier: Modifier = Modifier,
+    lineColor: Color = Color(0xFFE15241), // Reddish like in the photo
+    metrics: Map<String, String> = emptyMap()
+) {
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(color = TextSecondary, fontSize = 9.sp)
+    val metricStyle = TextStyle(color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+
+    Column(modifier = modifier) {
+        // Draw Metrics Header
+        if (metrics.isNotEmpty()) {
+            val chunkedMetrics = metrics.toList().chunked(3)
+            chunkedMetrics.forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    row.forEach { (key, value) ->
+                        Text(
+                            text = "$key: $value",
+                            style = metricStyle,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        Canvas(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            val width = size.width
+            val height = size.height
+            val centerX = width / 2
+            val centerY = height / 1.5f // Adjusted for better view
+            val scale = size.minDimension / 150f
+
+            // Rotation angles (fixed for the "standard" 3D view in the photo)
+            val angleX = -20.0 * PI / 180.0
+            val angleY = 45.0 * PI / 180.0
+
+            fun project(p: Point3D): Offset {
+                // Rotation around Y
+                val x1 = p.x * cos(angleY) + p.y * sin(angleY)
+                val y1 = p.z // Z is vertical in the plot
+                val z1 = -p.x * sin(angleY) + p.y * cos(angleY)
+
+                // Rotation around X
+                val x2 = x1
+                val y2 = y1 * cos(angleX) - z1 * sin(angleX)
+                
+                return Offset(
+                    centerX + (x2.toFloat() * scale),
+                    centerY - (y2.toFloat() * scale) // Flip Y for screen coordinates
+                )
+            }
+
+            // Draw Box/Grid
+            val boxSize = 50f
+            val corners = listOf(
+                Point3D(-boxSize, -boxSize, 0f),
+                Point3D(boxSize, -boxSize, 0f),
+                Point3D(boxSize, boxSize, 0f),
+                Point3D(-boxSize, boxSize, 0f),
+                Point3D(-boxSize, -boxSize, boxSize),
+                Point3D(boxSize, -boxSize, boxSize),
+                Point3D(boxSize, boxSize, boxSize),
+                Point3D(-boxSize, boxSize, boxSize)
+            ).map { project(it) }
+
+            // Draw grid base
+            val gridColor = Color.LightGray.copy(alpha = 0.5f)
+            val gridStroke = 1.dp.toPx()
+            
+            // Bottom square
+            drawLine(gridColor, corners[0], corners[1], gridStroke)
+            drawLine(gridColor, corners[1], corners[2], gridStroke)
+            drawLine(gridColor, corners[2], corners[3], gridStroke)
+            drawLine(gridColor, corners[3], corners[0], gridStroke)
+            
+            // Vertical lines
+            drawLine(gridColor, corners[0], corners[4], gridStroke)
+            drawLine(gridColor, corners[1], corners[5], gridStroke)
+            drawLine(gridColor, corners[2], corners[6], gridStroke)
+            drawLine(gridColor, corners[3], corners[7], gridStroke)
+
+            // Top partial lines (matplotlib usually shows a wireframe cage)
+            drawLine(gridColor, corners[4], corners[5], gridStroke)
+            drawLine(gridColor, corners[5], corners[6], gridStroke)
+            drawLine(gridColor, corners[6], corners[7], gridStroke)
+            drawLine(gridColor, corners[7], corners[4], gridStroke)
+
+            // Draw Labels
+            drawText(textMeasurer, "Roll", project(Point3D(0f, boxSize + 10f, 0f)), labelStyle)
+            drawText(textMeasurer, "Pitch", project(Point3D(boxSize + 10f, 0f, 0f)), labelStyle)
+            drawText(textMeasurer, "Jaw Opening", project(Point3D(-boxSize - 40f, -boxSize, boxSize / 2)), labelStyle)
+
+            // Draw Axis Ticks (simple)
+            val ticks = listOf(-40, -20, 0, 20, 40)
+            ticks.forEach { t ->
+                drawText(textMeasurer, t.toString(), project(Point3D(t.toFloat(), boxSize + 5f, 0f)), labelStyle)
+                drawText(textMeasurer, t.toString(), project(Point3D(boxSize + 5f, t.toFloat(), 0f)), labelStyle)
+            }
+            val zTicks = listOf(0, 10, 20, 30, 40, 50)
+            zTicks.forEach { t ->
+                drawText(textMeasurer, t.toString(), project(Point3D(-boxSize - 10f, -boxSize, t.toFloat())), labelStyle)
+            }
+
+            // Draw 3D Path
+            if (points.size > 1) {
+                val path = Path()
+                points.forEachIndexed { index, p ->
+                    val projected = project(p)
+                    if (index == 0) path.moveTo(projected.x, projected.y)
+                    else path.lineTo(projected.x, projected.y)
+                }
+                drawPath(
+                    path = path,
+                    color = lineColor,
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                )
+            }
+        }
     }
 }

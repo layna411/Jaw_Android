@@ -1,6 +1,5 @@
 package com.simats.newjaw.ui.screens
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.simats.newjaw.ui.components.*
 import com.simats.newjaw.ui.theme.*
 import com.simats.newjaw.ui.viewmodel.BleViewModel
 import com.simats.newjaw.ui.viewmodel.SensorViewModel
@@ -49,7 +50,8 @@ fun LiveMonitorScreen(
     bleViewModel: BleViewModel = viewModel()
 ) {
     var isMonitoring by remember { mutableStateOf(false) }
-    var sessionTime by remember { mutableStateOf(0) }
+    var sessionTime by remember { mutableIntStateOf(0) }
+    val trajectoryPoints = remember { mutableStateListOf<com.simats.newjaw.ui.viewmodel.JawSensorData>() }
 
     val sensorData by viewModel.sensorData.collectAsState()
     val isBackendLoading by viewModel.isLoading.collectAsState()
@@ -65,6 +67,7 @@ fun LiveMonitorScreen(
 
     LaunchedEffect(isMonitoring) {
         if (isMonitoring) {
+            trajectoryPoints.clear()
             viewModel.startPolling()
             bleViewModel.startScanning(patientId)
             while (true) {
@@ -236,126 +239,42 @@ fun LiveMonitorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Graph Area
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(350.dp),
+                    .height(450.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Mouth Opening: ${"%.2f".format(displacement)} mm | Lateral: 0.00 mm",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    )
-                    Text(
-                        text = "Velocity: ${"%.2f".format(velocity)} mm/s | Acceleration: ${"%.2f".format(acceleration)} mm/s²",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black,
-                        modifier = Modifier.padding(top = 2.dp).align(Alignment.CenterHorizontally)
-                    )
-                    Text(
-                        text = "ROM: ${"%.2f".format(rangeOfMotion)} mm | Freq: ${"%.2f".format(frequency)} Hz | Symmetry: ${"%.2f".format(symmetry)}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black,
-                        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp).align(Alignment.CenterHorizontally)
-                    )
-                    
-                    val trajectoryPoints = remember { mutableStateListOf<com.simats.newjaw.ui.viewmodel.JawSensorData>() }
-                    
-                    LaunchedEffect(sensorData) {
-                        if (isMonitoring) {
-                            trajectoryPoints.add(sensorData)
-                            if (trajectoryPoints.size > 500) trajectoryPoints.removeAt(0)
-                        } else {
-                            trajectoryPoints.clear()
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            val scale = size.width / 200f
-
-                            // Real-time data from sensors
-                            val p = sensorData.pitch.toFloat()
-                            val r = sensorData.roll.toFloat()
-                            val jo = sensorData.jawOpening.toFloat()
-
-                            // Drawing functions
-                            fun project(x: Float, y: Float, z: Float): androidx.compose.ui.geometry.Offset {
-                                val angleX = Math.toRadians(-15.0).toFloat()
-                                val angleY = Math.toRadians(30.0).toFloat()
-                                val xRot = x * cos(angleY) + y * sin(angleY)
-                                val yRot = y * cos(angleY) - x * sin(angleY)
-                                val finalX = xRot
-                                val finalY = yRot * cos(angleX) - z * sin(angleX)
-                                return androidx.compose.ui.geometry.Offset(centerX + finalX * scale, centerY - finalY * scale)
-                            }
-
-                            // 1. Draw Upper Jaw (Static)
-                            val upperColor = PurplePrimary.copy(alpha = 0.4f)
-                            val upperPath = androidx.compose.ui.graphics.Path().apply {
-                                val start = project(-40f, 0f, 40f)
-                                moveTo(start.x, start.y)
-                                val p1 = project(-30f, 60f, 40f)
-                                val p2 = project(30f, 60f, 40f)
-                                val p3 = project(40f, 0f, 40f)
-                                lineTo(p1.x, p1.y)
-                                lineTo(p2.x, p2.y)
-                                lineTo(p3.x, p3.y)
-                                close()
-                            }
-                            drawPath(upperPath, upperColor)
-                            drawPath(upperPath, PurplePrimary, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
-
-                            // 2. Draw Lower Jaw (Moving)
-                            // Pivot point is near the back
-                            val lowerColor = PurpleSecondary.copy(alpha = 0.8f)
-                            
-                            // Simple rotation and translation for lower jaw
-                            fun move(x: Float, y: Float, z: Float): androidx.compose.ui.geometry.Offset {
-                                val py = 60f
-                                val pz = 40f
-                                val radP = Math.toRadians(p.toDouble() + jo.toDouble()).toFloat()
-                                val dy = (y - py) * cos(radP) - (z - pz) * sin(radP)
-                                val dz = (z - pz) * cos(radP) + (y - py) * sin(radP)
-                                return project(x, py + dy, pz + dz)
-                            }
-
-                            val lowerPath = androidx.compose.ui.graphics.Path().apply {
-                                val start = move(-40f, 0f, 35f)
-                                moveTo(start.x, start.y)
-                                val p1 = move(-30f, 60f, 40f)
-                                val p2 = move(30f, 60f, 40f)
-                                val p3 = move(40f, 0f, 35f)
-                                val p4 = move(0f, -20f, 30f)
-                                lineTo(p1.x, p1.y)
-                                lineTo(p2.x, p2.y)
-                                lineTo(p3.x, p3.y)
-                                lineTo(p4.x, p4.y)
-                                close()
-                            }
-                            drawPath(lowerPath, lowerColor)
-                            drawPath(lowerPath, PurpleSecondary, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
-                        }
+                LaunchedEffect(sensorData) {
+                    if (isMonitoring) {
+                        trajectoryPoints.add(sensorData)
+                        if (trajectoryPoints.size > 200) trajectoryPoints.removeAt(0)
                     }
                 }
+
+                val graphPoints = trajectoryPoints.toList().map {
+                    Point3D(it.roll.toFloat(), it.pitch.toFloat(), it.jawOpening.toFloat())
+                }
+
+                val metricsMap = mapOf(
+                    "Disp" to "${"%.2f".format(displacement)} mm",
+                    "Vel" to "${"%.2f".format(velocity)} mm/s",
+                    "Acc" to "${"%.2f".format(acceleration)} mm/s²",
+                    "ROM" to "${"%.2f".format(rangeOfMotion)} mm",
+                    "Freq" to "${"%.2f".format(frequency)} Hz",
+                    "Sym" to "%.2f".format(symmetry)
+                )
+
+                ThreeDGraph(
+                    points = graphPoints,
+                    metrics = metricsMap,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
