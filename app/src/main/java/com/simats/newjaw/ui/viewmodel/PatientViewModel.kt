@@ -18,6 +18,21 @@ class PatientViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _stats = MutableStateFlow<DashboardStats?>(null)
+    val stats: StateFlow<DashboardStats?> = _stats.asStateFlow()
+
+    fun fetchStats(doctorId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.api.getStats(doctorId)
+                _stats.value = response
+            } catch (e: Exception) {
+                _error.value = "Stats error: ${e.localizedMessage}"
+            }
+        }
+    }
+
+
     fun fetchPatients(doctorId: Int) {
         viewModelScope.launch {
             _isLoading.value = true

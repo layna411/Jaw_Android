@@ -62,6 +62,8 @@ fun DashboardScreen(
     LaunchedEffect(doctor) {
         doctor?.let {
             patientViewModel.fetchPatients(it.id)
+            patientViewModel.fetchStats(it.id)
+
             
             val permissions = mutableListOf(
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -255,13 +257,15 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            val stats by patientViewModel.stats.collectAsState()
+
             // Stats Grid
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 StatCard(
                     modifier = Modifier.weight(1f),
                     label = "Total Patients",
-                    value = patients.size.toString(),
-                    change = "+${patients.size}",
+                    value = stats?.total_patients?.toString() ?: patients.size.toString(),
+                    change = "+${stats?.total_patients ?: patients.size}",
                     icon = Icons.Default.Group,
                     iconColorStart = Color(0xFFA855F7),
                     iconColorEnd = Color(0xFF9333EA)
@@ -269,8 +273,8 @@ fun DashboardScreen(
                 StatCard(
                     modifier = Modifier.weight(1f),
                     label = "Active Sessions",
-                    value = "8",
-                    change = "+2",
+                    value = stats?.active_sessions?.toString() ?: "0",
+                    change = if ((stats?.active_sessions ?: 0) > 0) "+${stats?.active_sessions}" else "0",
                     icon = Icons.Default.MonitorHeart,
                     iconColorStart = Color(0xFF22D3EE),
                     iconColorEnd = Color(0xFF0891B2)
@@ -281,8 +285,8 @@ fun DashboardScreen(
                 StatCard(
                     modifier = Modifier.weight(1f),
                     label = "Avg Recovery",
-                    value = "78%",
-                    change = "+5%",
+                    value = "${stats?.avg_recovery ?: 0.0}%",
+                    change = if ((stats?.avg_recovery ?: 0.0) > 0) "+${String.format("%.1f", (stats?.avg_recovery ?: 0.0) / 10)}%" else "0%",
                     icon = Icons.Default.TrendingUp,
                     iconColorStart = Color(0xFF4ADE80),
                     iconColorEnd = Color(0xFF16A34A)
@@ -290,13 +294,14 @@ fun DashboardScreen(
                 StatCard(
                     modifier = Modifier.weight(1f),
                     label = "Reports Today",
-                    value = "12",
-                    change = "+4",
+                    value = stats?.reports_today?.toString() ?: "0",
+                    change = "+${stats?.reports_today ?: 0}",
                     icon = Icons.Default.Description,
                     iconColorStart = Color(0xFFFB923C),
                     iconColorEnd = Color(0xFFEA580C)
                 )
             }
+
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -361,9 +366,11 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             patients.take(3).forEach { patient ->
-                RecentPatientCard(patient.patient_name, patient.unique_id ?: "N/A", 50, patient.phone ?: "N/A")
+                val progress = (((patient.latest_angle ?: 0.0) / 45.0) * 100).toInt().coerceAtMost(100)
+                RecentPatientCard(patient.patient_name, patient.unique_id ?: "N/A", progress, patient.phone ?: "N/A")
                 Spacer(modifier = Modifier.height(12.dp))
             }
+
 
 
 

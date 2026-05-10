@@ -20,6 +20,10 @@ interface ApiService {
 
     @GET("sessions")
     suspend fun getSessions(@Query("patient_id") patientId: String): List<SessionData>
+    
+    @GET("stats")
+    suspend fun getStats(@Query("doctor_id") doctorId: Int): DashboardStats
+
 
     @POST("auth/update-doctor")
     suspend fun updateDoctor(@Body doctor: Doctor): BaseResponse

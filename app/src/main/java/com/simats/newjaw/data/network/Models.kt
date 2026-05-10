@@ -42,8 +42,10 @@ data class Patient(
     val phone: String?,
     val medical_condition: String?,
     val assigned_exercise: String?,
+    val latest_angle: Double? = null,
     val created_at: String
 )
+
 
 
 data class PatientCreate(
@@ -71,3 +73,11 @@ data class SessionData(
     val max_angle: Double,
     val max_disp: Double
 )
+
+data class DashboardStats(
+    val total_patients: Int,
+    val active_sessions: Int,
+    val avg_recovery: Double,
+    val reports_today: Int
+)
+

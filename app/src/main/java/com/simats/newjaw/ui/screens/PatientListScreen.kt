@@ -260,6 +260,9 @@ fun PatientCard(patient: com.simats.newjaw.data.network.Patient, onClick: () -> 
 
             // Progress Section
             Column(modifier = Modifier.fillMaxWidth()) {
+                val latestAngle = patient.latest_angle ?: 0.0
+                val progressPercent = ((latestAngle / 45.0) * 100).coerceAtMost(100.0)
+                
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Recovery Progress", color = TextSecondary, fontSize = 12.sp)
                     Text("Last: ${patient.created_at.split("T").first()}", color = TextSecondary, fontSize = 11.sp)
@@ -267,15 +270,16 @@ fun PatientCard(patient: com.simats.newjaw.data.network.Patient, onClick: () -> 
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LinearProgressIndicator(
-                        progress = { 0.6f },
+                        progress = { (progressPercent / 100f).toFloat() },
                         modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
                         color = PurplePrimary,
                         trackColor = Color(0xFFE2E8F0)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("60%", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("${String.format("%.0f", progressPercent)}%", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
+
 
             Spacer(modifier = Modifier.height(20.dp))
 

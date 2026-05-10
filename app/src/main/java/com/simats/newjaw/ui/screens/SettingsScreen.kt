@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.simats.newjaw.ui.theme.*
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun SettingsScreen(
@@ -45,8 +47,13 @@ fun SettingsScreen(
     val scannedResults by bleViewModel.scannedDevices.collectAsState()
 
     var showConnectDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showCalibrationDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+
         androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.values.all { it }) {
@@ -67,17 +74,40 @@ fun SettingsScreen(
         )
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
+    if (showAboutDialog) {
+        AboutDialog(onDismiss = { showAboutDialog = false })
+    }
+
+    if (showCalibrationDialog) {
+        CalibrationDialog(
+            onDismiss = { showCalibrationDialog = false },
+            onCalibrate = {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Sensor calibration successful!")
+                    showCalibrationDialog = false
+                }
+            }
+        )
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Transparent
+    ) { padding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-                .padding(top = 40.dp, bottom = 120.dp)
+                .padding(padding)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 40.dp, bottom = 120.dp)
+            ) {
+
             // Header
             Column {
                 Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -165,12 +195,13 @@ fun SettingsScreen(
                     }
                 )
                 SettingsItem(Icons.Default.Wifi, "Connect Device")
-                SettingsItem(Icons.Default.Speed, "Sensor Calibration")
+                SettingsItem(Icons.Default.Speed, "Sensor Calibration", onClick = { showCalibrationDialog = true })
             }
 
             // About Section
             SettingsSection("ABOUT") {
-                SettingsItem(Icons.Default.Info, "About App", badge = "v1.0.0")
+                SettingsItem(Icons.Default.Info, "About App", badge = "v1.0.0", onClick = { showAboutDialog = true })
+
                 SettingsItem(Icons.Default.Security, "Privacy Policy")
             }
 
@@ -214,9 +245,11 @@ fun SettingsScreen(
                 Text("Smart Jaw Rehab", fontSize = 14.sp, color = TextSecondary)
                 Text("Version 1.0.0 • © 2026", fontSize = 12.sp, color = TextSecondary)
             }
+            }
         }
     }
 }
+
 
 @Composable
 fun ConnectBleDialog(
@@ -503,7 +536,114 @@ fun SettingsItem(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
             }
-            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+        Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
         }
     }
 }
+
+@Composable
+fun AboutDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier.size(80.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(PurplePrimary, PurpleSecondary))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("Smart Jaw Rehab", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text("Version 1.0.0", fontSize = 14.sp, color = TextSecondary)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "This application is designed for clinical jaw rehabilitation tracking using smart sensor hardware. It provides real-time monitoring and progress analytics.",
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    fontSize = 14.sp,
+                    color = TextPrimary,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
+                ) {
+                    Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CalibrationDialog(onDismiss: () -> Unit, onCalibrate: () -> Unit) {
+    var calibrating by remember { mutableStateOf(false) }
+    var progress by remember { mutableStateOf(0f) }
+    
+    LaunchedEffect(calibrating) {
+        if (calibrating) {
+            for (i in 1..100) {
+                progress = i / 100f
+                kotlinx.coroutines.delay(20)
+            }
+            onCalibrate()
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Sensor Calibration", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Place sensors on a flat surface", fontSize = 14.sp, color = TextSecondary)
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                if (calibrating) {
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(80.dp),
+                        color = PurplePrimary,
+                        strokeWidth = 8.dp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Calibrating... ${ (progress * 100).toInt() }%", fontWeight = FontWeight.SemiBold)
+                } else {
+                    Icon(Icons.Default.Speed, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(80.dp))
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = { calibrating = true },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                        enabled = !calibrating
+                    ) {
+                        Text("Start", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
