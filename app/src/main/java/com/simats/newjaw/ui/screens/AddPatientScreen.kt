@@ -45,21 +45,21 @@ fun AddPatientScreen(
     val doctor by authViewModel.currentUser.collectAsState()
     var fullName by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf("male") }
+//    var gender by remember { mutableStateOf("male") }
     var phone by remember { mutableStateOf("") }
     
-    var medicalCondition by remember { mutableStateOf("") }
-    var exerciseProgram by remember { mutableStateOf("Basic Range of Motion") }
-    var notes by remember { mutableStateOf("") }
+//    var medicalCondition by remember { mutableStateOf("") }
+//    var exerciseProgram by remember { mutableStateOf("Basic Range of Motion") }
+//    var notes by remember { mutableStateOf("") }
     
-    var showExerciseDropdown by remember { mutableStateOf(false) }
-    val exerciseOptions = listOf(
-        "Basic Range of Motion",
-        "Advanced Mobility Training",
-        "Post-Surgical Recovery",
-        "TMJ Rehabilitation Protocol",
-        "Muscle Strengthening"
-    )
+//    var showExerciseDropdown by remember { mutableStateOf(false) }
+//    val exerciseOptions = listOf(
+//        "Basic Range of Motion",
+//        "Advanced Mobility Training",
+//        "Post-Surgical Recovery",
+//        "TMJ Rehabilitation Protocol",
+//        "Muscle Strengthening"
+//    )
     
     val error by patientViewModel.error.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }

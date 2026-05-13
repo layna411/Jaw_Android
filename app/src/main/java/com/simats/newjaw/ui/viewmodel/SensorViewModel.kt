@@ -1,5 +1,6 @@
 package com.simats.newjaw.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
@@ -14,7 +15,9 @@ import com.simats.newjaw.data.network.SocketManager
 
 data class JawSensorData(
     val protrusiveAngle: Double = 0.0,
-    val protrusiveDisp: Double = 0.0
+    val protrusiveDisp: Double = 0.0,
+    val maxProtrusiveAngle: Double = 0.0,
+    val maxProtrusiveDisp: Double = 0.0
 )
 
 class SensorViewModel : ViewModel() {
@@ -39,9 +42,12 @@ class SensorViewModel : ViewModel() {
     init {
         SocketManager.connect()
         SocketManager.onMetricsReceived { json ->
+            Log.d("SensorViewModel", "Metrics received: $json")
             _sensorData.value = JawSensorData(
                 protrusiveAngle = json.optDouble("protrusive_angle", 0.0),
-                protrusiveDisp = json.optDouble("protrusive_disp", 0.0)
+                protrusiveDisp = json.optDouble("protrusive_disp", 0.0),
+                maxProtrusiveAngle = json.optDouble("max_angle", 0.0),
+                maxProtrusiveDisp = json.optDouble("max_disp", 0.0)
             )
         }
 

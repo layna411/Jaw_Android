@@ -235,8 +235,10 @@ fun SessionReportScreen(
 
                         // Detailed Metrics
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceAround
                         ) {
                             MetricItem("Angle", "${String.format("%.1f", session?.max_angle ?: 0.0)}°", Color(0xFFA855F7))
                             MetricItem("Disp", "${String.format("%.1f", session?.max_disp ?: 0.0)}mm", Color(0xFF06B6D4))
@@ -328,7 +330,7 @@ fun SessionReportScreen(
                             }
                         },
                         modifier = Modifier
-                            .weight(1.2f)
+                            .weight(1f)
                             .height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(),

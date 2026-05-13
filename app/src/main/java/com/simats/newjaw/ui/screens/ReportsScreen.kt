@@ -47,13 +47,13 @@ fun ReportsScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val weeklyData = sessions.map { session ->
+    val weeklyData = sessions.reversed().takeLast(7).map { session ->
         ChartData(session.session_date.takeLast(2), session.max_disp.toFloat())
-    }.takeLast(7)
+    }
 
-    val protrusiveAngleData = sessions.map { session ->
+    val protrusiveAngleData = sessions.reversed().takeLast(5).map { session ->
         ChartData(session.session_date.takeLast(5), session.max_angle.toFloat())
-    }.takeLast(5)
+    }
 
     LaunchedEffect(doctor) {
         doctor?.let {
@@ -137,7 +137,8 @@ fun ReportsScreen(
                                 data = weeklyData,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(200.dp)
+                                    .height(200.dp),
+                                maxY = (weeklyData.maxOfOrNull { it.value } ?: 100f).coerceAtLeast(100f) * 1.2f
                             )
                         }
                     }
@@ -159,7 +160,8 @@ fun ReportsScreen(
                                     data = protrusiveAngleData,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(200.dp)
+                                        .height(200.dp),
+                                    maxY = (protrusiveAngleData.maxOfOrNull { it.value } ?: 80f).coerceAtLeast(180f) * 1.1f
                                 )
                             } else {
                                 Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
@@ -193,28 +195,35 @@ fun ReportsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Session Analysis", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                                Text("Session Analysis", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 15.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(12.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text(report.session_date, color = TextSecondary, fontSize = 12.sp)
+                                    Text(report.session_date, color = TextSecondary, fontSize = 11.sp)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("• ${String.format("%.1f", report.max_angle)}° Max", color = TextSecondary, fontSize = 12.sp)
+                                    Text("•", color = TextSecondary, fontSize = 11.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("${String.format("%.1f", report.max_angle)}° Max", color = TextSecondary, fontSize = 11.sp)
                                 }
                             }
                             
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(end = 12.dp)) {
-                                Text(String.format("%.1f", report.max_disp), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally, 
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            ) {
+                                Text(String.format("%.1f", report.max_disp), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                                 Text("mm", fontSize = 10.sp, color = TextSecondary)
                             }
                             
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
@@ -227,8 +236,6 @@ fun ReportsScreen(
                                 ) {
                                     Icon(Icons.Default.Visibility, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(20.dp))
                                 }
-
-                                Spacer(modifier = Modifier.width(8.dp))
                                 
                                 Box(
                                     modifier = Modifier

@@ -9,7 +9,7 @@ object SocketManager {
     private var socket: Socket? = null
     
     // 10.0.2.2 points to emulator localhost. Change to your computer's IP (e.g. 192.168.x.x) if using physical device.
-    private const val SOCKET_URL = "http://10.135.130.148:5000"
+    private const val SOCKET_URL = "http://180.235.121.245:8068/"
 
     fun connect() {
         try {

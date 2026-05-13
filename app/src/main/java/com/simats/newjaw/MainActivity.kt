@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
                     val authViewModel: com.simats.newjaw.ui.viewmodel.AuthViewModel = viewModel()
                     val patientViewModel: com.simats.newjaw.ui.viewmodel.PatientViewModel = viewModel()
                     val bleViewModel: com.simats.newjaw.ui.viewmodel.BleViewModel = viewModel()
+                    val sessionViewModel: com.simats.newjaw.ui.viewmodel.SessionViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
@@ -230,6 +231,7 @@ class MainActivity : ComponentActivity() {
                                     com.simats.newjaw.ui.screens.ReportsScreen(
                                         authViewModel = authViewModel,
                                         patientViewModel = patientViewModel,
+                                        sessionViewModel = sessionViewModel,
                                         onNavigateToSessionReport = { id ->
                                             navController.navigate("session-report/$id")
                                         }
@@ -241,6 +243,9 @@ class MainActivity : ComponentActivity() {
                             val id = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 1
                             com.simats.newjaw.ui.screens.SessionReportScreen(
                                 reportId = id,
+                                sessionViewModel = sessionViewModel,
+                                patientViewModel = patientViewModel,
+                                authViewModel = authViewModel,
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }
